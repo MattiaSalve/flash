@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flash — Anki Cloze Card Generator</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="app">
+        <!-- Sidebar: card queue -->
+        <aside id="sidebar" class="sidebar">
+            <h2>Cards <span id="card-count" class="badge">0</span></h2>
+            <div id="card-list" class="card-list">
+                <p class="empty-hint">No cards yet. Add some from the main panel.</p>
+            </div>
+            <button id="download-all-btn" class="btn btn-success" onclick="downloadCSV()" disabled>
+                Download CSV for Anki
+            </button>
+        </aside>
+
+        <!-- Main panel -->
+        <main class="main">
+            <h1>Flash</h1>
+            <p class="subtitle">Generate Anki cloze deletion flashcards from sentences in any language</p>
+
+            <!-- Step 1: paste sentences -->
+            <section id="step-input" class="step">
+                <label for="sentences-input">Paste your sentences (one per line):</label>
+                <textarea id="sentences-input" rows="6" placeholder="Je suis allé à l'école hier&#10;Me gusta mucho la música&#10;Das Wetter ist heute schön"></textarea>
+                <button class="btn btn-primary" onclick="processSentences()">Start</button>
+            </section>
+
+            <!-- Step 2: word selection -->
+            <section id="step-words" class="step hidden">
+                <div class="progress-bar">
+                    <span id="progress-text">Sentence 1 of 1</span>
+                </div>
+                <p class="current-sentence" id="current-sentence"></p>
+                <p>Click the word you want to memorize:</p>
+                <div id="words-container" class="words-container"></div>
+            </section>
+
+            <!-- Step 3: preview & add -->
+            <section id="step-preview" class="step hidden">
+                <div class="preview-row">
+                    <div class="preview-box">
+                        <h4>Cloze</h4>
+                        <p id="cloze-preview" class="preview-text"></p>
+                    </div>
+                    <div class="preview-box">
+                        <h4>Translation</h4>
+                        <p id="translation-preview" class="preview-text"></p>
+                    </div>
+                    <div class="preview-box">
+                        <h4>Word meaning</h4>
+                        <p id="meaning-preview" class="preview-text"></p>
+                    </div>
+                </div>
+                <button class="btn btn-primary" onclick="addToDeck()">Add to deck</button>
+                <button class="btn btn-skip" onclick="skipSentence()">Skip this sentence</button>
+            </section>
+
+            <!-- Done state -->
+            <section id="step-done" class="step hidden">
+                <h2>All done! 🎉</h2>
+                <p>All sentences have been processed. Review your cards in the sidebar and download when ready.</p>
+                <button class="btn btn-primary" onclick="resetApp()">Start over</button>
+            </section>
+
+            <div id="error-msg" class="error hidden"></div>
+        </main>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>
