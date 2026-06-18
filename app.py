@@ -27,8 +27,9 @@ def generate():
     for card in cards:
         if not card.get("translation"):
             card["translation"] = translate_sentence(card["sentence"])
-        if not card.get("meaning"):
-            card["meaning"] = translate_sentence(card["word"])
+        if not card.get("meanings"):
+            # Translate each word individually
+            card["meanings"] = [translate_sentence(w) for w in card["words"]]
 
     csv_content = generate_anki_csv(cards)
 

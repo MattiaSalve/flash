@@ -1,10 +1,10 @@
 // State
 let sentences = [];
 let currentIndex = 0;
-let selectedWord = "";
-let selectedElement = null;
+let selectedWords = [];
+let selectedWordElements = [];
 let currentTranslation = "";
-let currentMeaning = "";
+let currentMeanings = [];
 let deck = [];
 
 // DOM refs
@@ -19,6 +19,10 @@ function processSentences() {
     if (!sentences.length) { showError("Please enter at least one sentence."); return; }
 
     currentIndex = 0;
+    selectedWords = [];
+    selectedWordElements = [];
+    currentTranslation = "";
+    currentMeanings = [];
     deck = [];
     renderDeck();
 
@@ -34,9 +38,10 @@ function renderCurrentSentence() {
     }
 
     const sentence = sentences[currentIndex];
-    selectedWord = "";
-    selectedElement = null;
+    selectedWords = [];
+    selectedWordElements = [];
     currentTranslation = "";
+    currentMeanings = [];
 
     $("progress-text").textContent = `Sentence ${currentIndex + 1} of ${sentences.length}`;
     $("current-sentence").textContent = sentence;
@@ -60,28 +65,59 @@ function renderCurrentSentence() {
 
 // ── Word selection ──────────────────────────────────────────────────
 async function selectWord(element, word) {
-    // Deselect previous
-    document.querySelectorAll(".word-chip").forEach(c => c.classList.remove("selected"));
-    element.classList.add("selected");
-    selectedWord = word;
-    selectedElement = element;
+    // Toggle selection (allow multiple)
+    if (element.classList.contains("selected")) {
+        element.classList.remove("selected");
+        selectedWords = selectedWords.filter(w => w !== word);
+        selectedWordElements = selectedWordElements.filter(el => el !== element);
+    } else {
+        element.classList.add("selected");
+        selectedWords.push(word);
+        selectedWordElements.push(element);
+    }
 
     const sentence = sentences[currentIndex];
 
-    // Build cloze locally
-    const cloze = sentence.replace(word, `{{c1::${word}}}`);
+    // Build cloze preview with all selected words
+    let cloze = sentence;
+    for (let i = 0; i < selectedWords.length; i++) {
+        const word = selectedWords[i];
+        cloze = cloze.replace(word, `{{c${i + 1}::${word}}}`);
+    }
     $("cloze-preview").textContent = cloze;
-    $("translation-preview").textContent = "Translating…";
-    $("meaning-preview").textContent = "Translating…";
-    $("step-preview").classList.remove("hidden");
 
-    // Fetch sentence translation and word meaning in parallel
-    [currentTranslation, currentMeaning] = await Promise.all([
-        translateText(sentence),
-        translateText(word),
-    ]);
-    $("translation-preview").textContent = currentTranslation;
-    $("meaning-preview").textContent = currentMeaning;
+    // Update preview section title and show
+    $("preview-title").textContent = selectedWords.length === 1
+        ? "Cloze & translation"
+        : `Cloze (${selectedWords.length} words) & translations`;
+    $("translation-preview").innerHTML = Array.from(
+        {length: selectedWords.length},
+        (_, i) => `<div class="translation-item">${selectedWords[i]}: <span class="translating">Translating...</span></div>`
+    ).join("");
+    $("meaning-preview").innerHTML = Array.from(
+        {length: selectedWords.length},
+        (_, i) => `<div class="translation-item">${selectedWords[i]}: <span class="translating">Translating...</span></div>`
+    ).join("");
+
+    // Fetch all translations and meanings
+    if (selectedWords.length > 0) {
+        const [sentenceTrans, ...wordTranslations] = await Promise.all([
+            translateText(sentence),
+            ...selectedWords.map(w => translateText(w))
+        ]);
+        currentTranslation = sentenceTrans;
+        currentMeanings = wordTranslations;
+
+        // Update preview
+        $("translation-preview").innerHTML = selectedWords.map((word, i) =>
+            `<div class="translation-item">${word}: ${currentMeanings[i] || "(translation unavailable)"}</div>`
+        ).join("");
+        $("meaning-preview").innerHTML = selectedWords.map((word, i) =>
+            `<div class="translation-item">${word}: ${currentMeanings[i] || "(translation unavailable)"}</div>`
+        ).join("");
+    }
+
+    $("step-preview").classList.remove("hidden");
 }
 
 async function translateText(text) {
@@ -100,16 +136,21 @@ async function translateText(text) {
 
 // ── Add card to deck ────────────────────────────────────────────────
 function addToDeck() {
-    if (!selectedWord) { showError("Please select a word first."); return; }
+    if (selectedWords.length === 0) { showError("Please select at least one word."); return; }
 
     const sentence = sentences[currentIndex];
-    const cloze = sentence.replace(selectedWord, `{{c1::${selectedWord}}}`);
+    // Build cloze with all selected words
+    let cloze = sentence;
+    for (let i = 0; i < selectedWords.length; i++) {
+        const word = selectedWords[i];
+        cloze = cloze.replace(word, `{{c${i + 1}::${word}}}`);
+    }
 
     deck.push({
         sentence: sentence,
-        word: selectedWord,
+        words: [...selectedWords],
         translation: currentTranslation,
-        meaning: currentMeaning,
+        meanings: [...currentMeanings],
         cloze: cloze,
     });
 
@@ -173,9 +214,9 @@ async function downloadCSV() {
             body: JSON.stringify({
                 cards: deck.map(c => ({
                     sentence: c.sentence,
-                    word: c.word,
+                    words: c.words,
                     translation: c.translation,
-                    meaning: c.meaning,
+                    meanings: c.meanings,
                 })),
             }),
         });
